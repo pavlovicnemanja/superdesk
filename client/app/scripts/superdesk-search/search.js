@@ -571,16 +571,14 @@
             return {
                 scope: {},
                 templateUrl: asset.templateUrl('superdesk-search/views/search-tags.html'),
-                //require: ['^sd-meta-terms'],
-                link: function(scope, elem, attr, sdMetaTermsCtrl) {
+                require: ['^sdMetaTerms'],
+                link: function(scope, elem, attr, controllers) {
 
-                    var update = function() {
-                        tags.initSelectedFacets().then(function(currentTags) {
-                            scope.tags = currentTags;
-                        });
-                    };
+                    var sdMetaTermsCtrl = controllers[0];
 
-                    update();
+                    tags.initSelectedFacets().then(function (currentTags) {
+                        scope.tags = currentTags;
+                    });
 
                     scope.removeFilter = function(type, key) {
                         tags.removeFacet(type, key);
