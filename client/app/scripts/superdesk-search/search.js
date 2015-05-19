@@ -566,12 +566,13 @@
             };
         }])
 
-        .directive('sdSearchTags', ['$location', '$route', 'tags', 'asset',
-            function($location, $route, tags, asset) {
+        .directive('sdSearchTags', ['$location', '$route', 'tags', 'asset', 'metadata',
+            function($location, $route, tags, asset, metadata) {
             return {
                 scope: {},
                 templateUrl: asset.templateUrl('superdesk-search/views/search-tags.html'),
-                link: function(scope, elem) {
+                //require: ['^sd-meta-terms'],
+                link: function(scope, elem, attr, sdMetaTermsCtrl) {
 
                     var update = function() {
                         tags.initSelectedFacets().then(function(currentTags) {
@@ -590,8 +591,27 @@
                         if (params.q) {
                             params.q = params.q.replace(param, '').trim();
                             $location.search('q', params.q || null);
+                            // If it is subject code, remove it from left bar, too
+                            if (param.indexOf('subject.name:') !== -1) {
+                                metadata.fetchSubjectcodes().then(function () {
+                                    scope.subjectcodes = metadata.values.subjectcodes;
+                                    sdMetaTermsCtrl.removeTerm(getSubjectCodeObject(param));
+                                });
+                            }
                         }
                     };
+
+                    function getSubjectCodeObject(subjectCodeName){
+                        var elementName = subjectCodeName.substring(
+                            subjectCodeName.lastIndexOf('(') + 1,
+                            subjectCodeName.lastIndexOf(')')
+                        );
+                        for (var i = 0, subjectCodesLenght = scope.subjectcodes.length; i < subjectCodesLenght; i++) {
+                            if (scope.subjectcodes[i].name === elementName) {
+                                return scope.subjectcodes[i];
+                            }
+                        }
+                    }
                 }
             };
         }])
@@ -883,7 +903,8 @@
             };
         }])
 
-        .directive('sdItemSearch', ['$location', '$timeout', 'asset', 'api', function($location, $timeout, asset, api) {
+        .directive('sdItemSearch', ['$location', '$timeout', 'asset', 'api', 'tags', 'metadata',
+            function($location, $timeout, asset, api, tags, metadata) {
             return {
                 scope: {
                     repo: '=',
@@ -1020,6 +1041,63 @@
                             }, 0, false);
                         });
                     });
+
+                    metadata.fetchSubjectcodes().then(function () {
+                        scope.subjectcodes = metadata.values.subjectcodes;
+                        tags.initSelectedFacets().then(function (currentTags) {
+                            scope.subjectitems = {
+                                subject: getSubjectCodes(currentTags)
+                            };
+                        });
+                    });
+
+                    function getSubjectCodes(currentTags) {
+                        var queryArray = currentTags.selectedParameters, filteredArray = [];
+                        if (!$location.search().q) {
+                            return filteredArray;
+                        }
+                        for (var i = 0, queryArrayLength = queryArray.length; i < queryArrayLength; i++) {
+                            var queryArrayElement = queryArray[i];
+                            if (queryArrayElement.indexOf('subject.name') !== -1) {
+                                var elementName = queryArrayElement.substring(
+                                    queryArrayElement.lastIndexOf('(') + 1,
+                                    queryArrayElement.lastIndexOf(')')
+                                    );
+                                for (var j = 0, subjectCodesLenght = scope.subjectcodes.length; j < subjectCodesLenght; j++) {
+                                    if (scope.subjectcodes[j].name === elementName) {
+                                        filteredArray.push(scope.subjectcodes[j]);
+                                    }
+                                }
+                            }
+                        }
+                        return filteredArray;
+                    }
+
+                    scope.subjectSearch = function (item) {
+                        tags.initSelectedFacets().then(function (currentTags) {
+                            if (item.subject.length > getSubjectCodes(currentTags).length) {
+                                var addItemSubjectName = 'subject.name:(' + item.subject[item.subject.length - 1].name + ')';
+                                var query = getQuery(),
+                                        q = (query === null ?
+                                                addItemSubjectName :
+                                                query + ' ' + addItemSubjectName);
+
+                                $location.search('q', q);
+                            } else {
+                                var params = $location.search();
+                                if (params.q) {
+                                    for (var j = 0; j < getSubjectCodes(currentTags).length; j++) {
+                                        if (item.subject.indexOf(getSubjectCodes(currentTags)[j]) === -1) {
+                                            var removeItemSubjectName = 'subject.name:(' + getSubjectCodes(currentTags)[j].name + ')';
+                                            params.q = params.q.replace(removeItemSubjectName, '').trim();
+                                            $location.search('q', params.q || null);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    };
+
                 }
             };
         }])

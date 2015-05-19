@@ -156,7 +156,21 @@ function MetadataListEditingDirective() {
             postprocessing: '&',
             change: '&'
         },
+        transclude: true,
         templateUrl: 'scripts/superdesk-authoring/metadata/views/metadata-terms.html',
+        controller: function() {
+            this.removeTerm = function(term) {
+                var temp = _.without(this.item[this.field], term);
+
+                //build object
+                var o = {};
+                o[this.field] = temp;
+
+                _.extend(this.item, o);
+
+                this.change({item: this.item});
+            };
+        },
         link: function(scope) {
 
             scope.$watch('list', function(items) {
@@ -223,18 +237,6 @@ function MetadataListEditingDirective() {
                     scope.postprocessing();
                     scope.change({item: scope.item});
                 }
-            };
-
-            scope.removeTerm = function(term) {
-                var temp = _.without(scope.item[scope.field], term);
-
-                //build object
-                var o = {};
-                o[scope.field] = temp;
-
-                _.extend(scope.item, o);
-
-                scope.change({item: scope.item});
             };
         }
     };
